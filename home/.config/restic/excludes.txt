@@ -1,0 +1,58 @@
+# Exclusiones de restic para /home/jeanpi
+# Regla: fuera todo lo que se pueda regenerar, descargar o reinstalar.
+
+# --- El propio repositorio de restic (nunca respaldarse a sí mismo) ---
+/home/jeanpi/backups/restic-local
+
+# --- Cachés generales ---
+/home/jeanpi/.cache
+**/Cache
+**/CachedData
+**/Code Cache
+**/GPUCache
+**/ShaderCache
+**/DawnCache
+**/DawnGraphiteCache
+**/DawnWebGPUCache
+**/GrShaderCache
+**/component_crx_cache
+**/*.log
+
+# --- Papelera ---
+/home/jeanpi/.local/share/Trash
+
+# --- Juegos y descargas (regenerables) ---
+/home/jeanpi/Games
+/home/jeanpi/Downloads
+
+# --- Runtimes y plugins reinstalables ---
+/home/jeanpi/.local/share/mise
+/home/jeanpi/.local/share/nvim/lazy
+/home/jeanpi/.local/share/nvim/mason
+/home/jeanpi/.local/share/omarchy
+/home/jeanpi/.local/share/voxtype/models
+
+# --- Artefactos de desarrollo ---
+**/node_modules
+**/__pycache__
+**/.venv
+**/venv
+**/target/debug
+**/target/release
+**/.next
+**/dist
+**/build
+**/.gradle
+**/.cargo/registry
+
+# --- Contenedores ---
+/home/jeanpi/.local/share/containers
+/home/jeanpi/.docker
+
+# --- Copia suelta de perfil antigua ---
+/home/jeanpi/k8mjhsyk.Default (release) (Copy)
+
+# --- Temporales ---
+**/*.tmp
+**/*.swp
+**/.DS_Store

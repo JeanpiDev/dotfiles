@@ -1,0 +1,15 @@
+{
+  "excludedApps": {
+    "foot": true,
+    "ghostty": true,
+    "kitty": true,
+    "vencord": true,
+    "warp": true,
+    "wofi": true,
+    "zellij": true
+  },
+  "includeNeovim": true,
+  "includeVscode": true,
+  "includeZed": false,
+  "selectedNeovimConfig": ""
+}

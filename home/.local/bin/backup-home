@@ -1,0 +1,72 @@
+#!/bin/bash
+# Backup de /home/jeanpi con restic.
+# Uso: backup-home [backup|check|snapshots|restore-test]
+
+set -euo pipefail
+
+CONF_DIR="$HOME/.config/restic"
+set -a
+# shellcheck source=/dev/null
+source "$CONF_DIR/restic.env"
+set +a
+
+EXCLUDES="$CONF_DIR/excludes.txt"
+TARGET="$HOME"
+
+case "${1:-backup}" in
+backup)
+  echo "==> Backup de $TARGET hacia $RESTIC_REPOSITORY"
+  # Código 3 = el snapshot se creó pero algún fichero no se pudo leer (p. ej. un
+  # fichero en uso). Es un aviso, no un fallo: se registra y se continúa.
+  rc=0
+  restic backup "$TARGET" \
+    --exclude-file="$EXCLUDES" \
+    --exclude-caches \
+    --tag auto \
+    --verbose=1 || rc=$?
+  if [[ $rc -eq 3 ]]; then
+    echo "==> AVISO: snapshot creado, pero algún fichero no se pudo leer"
+  elif [[ $rc -ne 0 ]]; then
+    echo "==> ERROR: restic backup falló con código $rc" >&2
+    exit $rc
+  fi
+
+  echo "==> Rotación de snapshots antiguos"
+  restic forget \
+    --keep-daily 7 \
+    --keep-weekly 4 \
+    --keep-monthly 6 \
+    --prune
+
+  echo "==> Backup completado"
+  ;;
+
+check)
+  # Verifica la integridad del repositorio leyendo una muestra de los datos.
+  restic check --read-data-subset=5%
+  ;;
+
+snapshots)
+  restic snapshots
+  ;;
+
+restore-test)
+  # Restaura un fichero conocido a un directorio temporal y compara con el original.
+  DEST=$(mktemp -d)
+  PROBE=".config/hypr/hyprland.conf"
+  echo "==> Restaurando $PROBE en $DEST"
+  restic restore latest --target "$DEST" --include "$HOME/$PROBE"
+  if diff -q "$HOME/$PROBE" "$DEST/$HOME/$PROBE" >/dev/null; then
+    echo "==> OK: el fichero restaurado es idéntico al original"
+  else
+    echo "==> FALLO: el fichero restaurado NO coincide" >&2
+    exit 1
+  fi
+  rm -rf "$DEST"
+  ;;
+
+*)
+  echo "Uso: backup-home [backup|check|snapshots|restore-test]" >&2
+  exit 1
+  ;;
+esac

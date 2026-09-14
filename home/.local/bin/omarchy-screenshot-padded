@@ -1,0 +1,62 @@
+#!/bin/bash
+# Captura que incluye borde y esquinas redondeadas de la ventana.
+#
+# omarchy-capture-region devuelve .at/.size de hyprctl clients: la geometría del
+# CONTENIDO, sin borde (2px) ni sombra (16px). Este script expande ese rectángulo
+# SOLO si coincide exactamente con una ventana; una selección libre se respeta
+# tal cual, para no alterar lo que el usuario recortó a mano.
+#
+# Uso: omarchy-screenshot-padded [smart|windows|region|fullscreen] [PAD]
+
+set -euo pipefail
+
+MODE="${1:-smart}"
+PAD="${2:-20}"
+
+[[ -f ~/.config/user-dirs.dirs ]] && source ~/.config/user-dirs.dirs
+OUTPUT_DIR="${OMARCHY_SCREENSHOT_DIR:-${XDG_PICTURES_DIR:-$HOME/Pictures}}"
+mkdir -p "$OUTPUT_DIR"
+
+{ read -r FREEZE_PID; read -r SELECTION; } < <(omarchy-capture-region "$MODE" --keep-freeze)
+cleanup() { [[ -n ${FREEZE_PID:-} ]] && kill "$FREEZE_PID" 2>/dev/null || true; }
+trap cleanup EXIT
+
+[[ -z ${SELECTION:-} ]] && exit 0
+
+# ¿La selección es exactamente una ventana? Entonces añadimos margen.
+ws=$(hyprctl monitors -j | jq -r '.[] | select(.focused) | .activeWorkspace.id')
+is_window=false
+while read -r rect; do
+  [[ $rect == "$SELECTION" ]] && { is_window=true; break; }
+done < <(hyprctl clients -j | jq -r --arg ws "$ws" \
+  '.[] | select(.workspace.id == ($ws|tonumber) and .hidden != true) | "\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"')
+
+GEO="$SELECTION"
+
+if $is_window; then
+  XY="${SELECTION%% *}"; WH="${SELECTION##* }"
+  X="${XY%%,*}"; Y="${XY##*,}"; W="${WH%%x*}"; H="${WH##*x}"
+  read -r MX MY MW MH < <(hyprctl monitors -j | jq -r '.[] | select(.focused) | "\(.x) \(.y) \(.width) \(.height)"')
+
+  NX=$(( X - PAD )); NY=$(( Y - PAD ))
+  NW=$(( W + PAD * 2 )); NH=$(( H + PAD * 2 ))
+
+  # Recorta al monitor para que grim no falle en los bordes.
+  (( NX < MX )) && { NW=$(( NW - (MX - NX) )); NX=$MX; }
+  (( NY < MY )) && { NH=$(( NH - (MY - NY) )); NY=$MY; }
+  (( NX + NW > MX + MW )) && NW=$(( MX + MW - NX ))
+  (( NY + NH > MY + MH )) && NH=$(( MY + MH - NY ))
+
+  GEO="${NX},${NY} ${NW}x${NH}"
+fi
+
+FILEPATH="$OUTPUT_DIR/$(date '+%Y-%m-%d_%H-%M-%S').png"
+grim -g "$GEO" - | tee "$FILEPATH" | wl-copy --type image/png
+cleanup; trap - EXIT
+
+(
+  ACTION=$(omarchy-notification-send "Captura guardada" \
+    "Editar con Super + Alt + , (o pulsa aquí)" -t 10000 -i "$FILEPATH" -A "default=edit" 2>/dev/null || true)
+  [[ $ACTION == "default" ]] && satty --filename "$FILEPATH" --output-filename "$FILEPATH" \
+    --actions-on-enter save-to-clipboard --save-after-copy --copy-command wl-copy
+) >/dev/null 2>&1 &

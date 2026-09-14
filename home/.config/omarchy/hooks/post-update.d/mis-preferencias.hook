@@ -1,0 +1,82 @@
+#!/bin/bash
+# Reaplica preferencias propias tras `omarchy update`.
+#
+# omarchy update reinstala su conjunto de paquetes por defecto y reactiva
+# servicios. Este hook vuelve a desactivar los que no tienen hardware detrás.
+#
+# Diseño: solo desactiva si el hardware/configuración NO existe. Si algún día
+# conectas un dongle Bluetooth o configuras una impresora, el hook se aparta
+# solo en vez de pelearse contigo.
+
+cambios=()
+
+# sudo -n = no interactivo. Si no hay ticket válido, no cuelga esperando.
+tiene_sudo() { sudo -n true 2>/dev/null; }
+
+apagar() {
+  local unidad="$1"
+  systemctl is-enabled "$unidad" &>/dev/null || return 0
+  if tiene_sudo && sudo -n systemctl disable --now "$unidad" &>/dev/null; then
+    cambios+=("$unidad")
+  else
+    cambios+=("$unidad (FALTA SUDO)")
+  fi
+}
+
+# --- Bluetooth: solo si no hay controladora ---
+if ! compgen -G "/sys/class/bluetooth/*" >/dev/null; then
+  apagar bluetooth.service
+fi
+
+# --- WiFi: solo si no hay interfaz inalámbrica ---
+if ! compgen -G "/sys/class/net/*/wireless" >/dev/null; then
+  apagar iwd.service
+fi
+
+# --- Impresión: solo si no hay ninguna impresora configurada ---
+if ! lpstat -p &>/dev/null || [[ -z $(lpstat -p 2>/dev/null) ]]; then
+  for u in cups.service cups.socket cups.path cups-browsed.service \
+           avahi-daemon.service avahi-daemon.socket; do
+    apagar "$u"
+  done
+fi
+
+# --- Retención de snapshots (se desactivó sola alguna vez) ---
+if ! systemctl is-enabled snapper-cleanup.timer &>/dev/null; then
+  if tiene_sudo && sudo -n systemctl enable --now snapper-cleanup.timer &>/dev/null; then
+    cambios+=("snapper-cleanup.timer (reactivado)")
+  else
+    cambios+=("snapper-cleanup.timer (FALTA SUDO)")
+  fi
+fi
+
+# --- Tiempos de inactividad (shell.json) ---
+# La 4.0 eliminó hypridle y pasó esto al servicio `idle` del shell de Quickshell.
+# Las actualizaciones reescriben shell.json con los valores por defecto
+# (150 / 300), así que aquí se reafirman los propios.
+QUIERO_SALVAPANTALLAS=300   # 5 min
+QUIERO_BLOQUEO=600          # 10 min
+
+shell_json="$HOME/.config/omarchy/shell.json"
+if [[ -f $shell_json ]] && command -v jq >/dev/null; then
+  actual_ss=$(jq -r '.idle.screensaver // empty' "$shell_json" 2>/dev/null)
+  actual_lk=$(jq -r '.idle.lock // empty' "$shell_json" 2>/dev/null)
+  if [[ $actual_ss != "$QUIERO_SALVAPANTALLAS" || $actual_lk != "$QUIERO_BLOQUEO" ]]; then
+    tmp=$(mktemp)
+    if jq --argjson ss "$QUIERO_SALVAPANTALLAS" --argjson lk "$QUIERO_BLOQUEO" \
+         '.idle.screensaver = $ss | .idle.lock = $lk' "$shell_json" > "$tmp" 2>/dev/null \
+       && jq empty "$tmp" 2>/dev/null; then
+      mv "$tmp" "$shell_json"
+      omarchy restart shell &>/dev/null || true
+      cambios+=("idle: ${actual_ss:-?}/${actual_lk:-?}s → ${QUIERO_SALVAPANTALLAS}/${QUIERO_BLOQUEO}s")
+    else
+      rm -f "$tmp"
+      cambios+=("idle: NO se pudo reescribir shell.json")
+    fi
+  fi
+fi
+
+if (( ${#cambios[@]} > 0 )); then
+  notify-send -u normal "Preferencias reaplicadas" "$(printf '%s\n' "${cambios[@]}")"
+  printf 'post-update: %s\n' "${cambios[@]}"
+fi

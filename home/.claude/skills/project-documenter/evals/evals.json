@@ -1,0 +1,50 @@
+{
+  "skill_name": "project-documenter",
+  "evals": [
+    {
+      "id": 0,
+      "name": "repo-docs-folder",
+      "prompt": "Documenta este proyecto en una carpeta docs/ para que un nuevo desarrollador lo entienda rápido. Quiero un diagrama de arquitectura, una tabla con los endpoints de la API y una tabla con las variables de entorno. El proyecto está en C:\\Users\\Usuario\\Develop\\sonix-transcriber.",
+      "expected_output": "A docs/ folder with multiple Markdown files (or a structured doc) covering overview, architecture, API and setup. Includes at least one valid Mermaid diagram of the architecture, a Markdown table of the real endpoints (/transcribe, /folder/cleanup, /health) and a table of the real env vars (SONIX_EMAIL, SONIX_PASSWORD, SONIX_FOLDER_ID, SONIX_HEADLESS, SONIX_CACHE_DIR). Claims grounded in actual files.",
+      "files": [],
+      "assertions": [
+        "Produces at least one Markdown file (ideally a docs/ folder with multiple files plus an index)",
+        "Contains at least one fenced ```mermaid code block",
+        "Every mermaid block is syntactically valid (parses without error)",
+        "Includes a Markdown table that lists all three real endpoints: /transcribe, /folder/cleanup, /health",
+        "Includes a Markdown table of env vars covering SONIX_EMAIL, SONIX_PASSWORD, SONIX_FOLDER_ID, SONIX_HEADLESS and SONIX_CACHE_DIR",
+        "Does NOT invent endpoints or env vars that are absent from the codebase",
+        "Cites real source files such as app/main.py, app/sonix_transcriber.py or app/config.py"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "architecture-md-diagrams",
+      "prompt": "Necesito un solo archivo ARCHITECTURE.md que explique cómo funciona este servicio: un diagrama de flujo de datos del pipeline y un diagrama de secuencia de una petición de transcripción. El código está en C:\\Users\\Usuario\\Develop\\sonix-transcriber.",
+      "expected_output": "A single ARCHITECTURE.md containing a Mermaid flowchart of the 4-phase pipeline (upload -> transcribe click -> wait -> download) and a Mermaid sequenceDiagram of a /transcribe request. Both diagrams syntactically valid. Prose explains each step and cites real files (app/main.py, app/sonix_transcriber.py).",
+      "files": [],
+      "assertions": [
+        "Produces a single ARCHITECTURE.md file",
+        "Contains a mermaid flowchart diagram of the pipeline",
+        "Contains a mermaid sequenceDiagram of a transcription request",
+        "Both mermaid diagrams are syntactically valid",
+        "Describes the real 4-phase pipeline (upload, transcribe-in-spanish click, wait transcribed, download)",
+        "Cites real source files (app/main.py and app/sonix_transcriber.py)"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "notion-ready-writeup",
+      "prompt": "Quiero documentar este proyecto en Notion: una página con un overview, la arquitectura con un diagrama, y una tabla de endpoints. El proyecto está en C:\\Users\\Usuario\\Develop\\sonix-transcriber. (Nota: en este entorno de prueba el conector de Notion NO está disponible, así que en vez de crear la página, guarda el contenido Notion-ready de la página como un archivo .md.)",
+      "expected_output": "A Markdown file containing Notion-ready page content: a title handled as page property (no leading # title in body per Notion convention), an Overview section, an Architecture section with a mermaid code block, and a Markdown table of endpoints. Should mention the Notion publishing approach (parent page, mermaid code block) even though it didn't create the page.",
+      "files": [],
+      "assertions": [
+        "Produces a Markdown file with the Notion-ready page content",
+        "Includes an Overview section and an Architecture section",
+        "Architecture section contains a fenced ```mermaid code block (which Notion renders as a diagram)",
+        "Includes a Markdown table of the real endpoints",
+        "Explains the Notion publishing approach: parent page_id, title as page property (not a leading # in body), mermaid in a code block"
+      ]
+    }
+  ]
+}
