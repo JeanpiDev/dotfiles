@@ -54,8 +54,8 @@ fi
 # La 4.0 eliminó hypridle y pasó esto al servicio `idle` del shell de Quickshell.
 # Las actualizaciones reescriben shell.json con los valores por defecto
 # (150 / 300), así que aquí se reafirman los propios.
-QUIERO_SALVAPANTALLAS=300   # 5 min
-QUIERO_BLOQUEO=600          # 10 min
+QUIERO_SALVAPANTALLAS=600   # 10 min
+QUIERO_BLOQUEO=1200         # 20 min
 
 shell_json="$HOME/.config/omarchy/shell.json"
 if [[ -f $shell_json ]] && command -v jq >/dev/null; then
@@ -66,7 +66,8 @@ if [[ -f $shell_json ]] && command -v jq >/dev/null; then
     if jq --argjson ss "$QUIERO_SALVAPANTALLAS" --argjson lk "$QUIERO_BLOQUEO" \
          '.idle.screensaver = $ss | .idle.lock = $lk' "$shell_json" > "$tmp" 2>/dev/null \
        && jq empty "$tmp" 2>/dev/null; then
-      mv "$tmp" "$shell_json"
+      # cat en vez de mv: mv reemplazaría el enlace simbólico a dotfiles.
+      cat "$tmp" > "$shell_json" && rm -f "$tmp"
       omarchy restart shell &>/dev/null || true
       cambios+=("idle: ${actual_ss:-?}/${actual_lk:-?}s → ${QUIERO_SALVAPANTALLAS}/${QUIERO_BLOQUEO}s")
     else
