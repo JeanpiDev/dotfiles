@@ -64,6 +64,25 @@ hardware o impresora detrás. Si algún día conecto un dongle, deja de interven
   corrompe transcripciones que ya eran correctas.
 - `alacritty/alacritty.toml` — fuente y tamaño.
 - `aether/settings.json` — generador de temas a partir del fondo de pantalla.
+
+> [!WARNING]
+> **`voxtype/config.toml` rompe su propio enlace simbólico.** Tanto el TUI
+> (`voxtype configure`) como `voxtype config set` escriben con la técnica de
+> fichero temporal más renombrado, lo que sustituye el enlace por un fichero
+> suelto.
+>
+> Peor aún: ejecutar `install.sh` después **revierte el cambio**, porque
+> restaura el enlace apuntando a la copia del repositorio, que sigue con el
+> valor viejo. El orden correcto es:
+>
+> ```bash
+> voxtype config set <clave> <valor>
+> cp ~/.config/voxtype/config.toml ~/dotfiles/home/.config/voxtype/config.toml
+> ~/dotfiles/install.sh
+> ```
+>
+> O más simple: **editar directamente el fichero del repositorio**, que el
+> enlace ya refleja.
 - `.claude/skills/` — skills propias de Claude Code: `find-docs`,
   `project-documenter` y `resumen-commits`.
 
